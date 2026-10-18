@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { Json } from "@/integrations/supabase/types";
 
 const Input = z.object({
   imagePath: z.string().min(1).max(300),
@@ -55,13 +56,20 @@ export const diagnoseCrop = createServerFn({ method: "POST" })
       output: Output.object({ schema }),
       providerOptions: reasoningOptions,
     } as Parameters<typeof streamText>[0]);
-    const output = (await result.output) as Record<string, unknown>;
+    const output = (await (result as any).output) as Json;
 
     const { data: row, error: insErr } = await supabase
       .from("diagnoses")
-      .insert({ user_id: userId, crop: data.crop, stage: data.stage, symptoms: data.symptoms, image_path: data.imagePath, result: output })
+      .insert({
+        user_id: userId,
+        crop: data.crop,
+        stage: data.stage,
+        symptoms: data.symptoms,
+        image_path: data.imagePath,
+        result: output,
+      })
       .select("id")
       .single();
     if (insErr) throw new Error("Could not save diagnosis");
-    return { id: row.id, result: output };
+    return { id: row.id, result: output as Record<string, string | number | boolean | null> };
   });
